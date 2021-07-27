@@ -51,16 +51,23 @@ namespace AzFunctionDipsAtrex
                 //var cleanRepet = volcadoList.Where(x => !validationResponse.Contains(x.GuiasAsociadas)).ToList();//!x.Master.Equals(validationResponse.Select(x => x))).Select(x => x).ToList();
                 //int response = InsertDataInSynapse(cleanRepet);
                 //log.LogInformation("C# Total synapse insertadas: " + response);
-
+                int responseSorter = 0;
                 // cargar datos en synapse
                 var validationSorterResponse = _dipsSorterDataAccess.GetRepeatedTrackingSynapse(trackingList);
                 log.LogInformation("C# Total ots sorter repetidas: " + validationSorterResponse.Count());
                 var cleanSorterRepet = volcadoList.Where(x => !validationSorterResponse.Contains(x.GuiasAsociadas)).ToList();//!x.Master.Equals(validationResponse.Select(x => x))).Select(x => x).ToList();
-                int responseSorter = InsertDataInSorterDB(cleanSorterRepet);
-                log.LogInformation("C# Total sorter insertadas: " + responseSorter);
+                if (cleanSorterRepet.Count == 0)
+                {
+                    log.LogInformation("C# No se insertaron registros. ");
+                }
+                else
+                {
+                    responseSorter = InsertDataInSorterDB(cleanSorterRepet);
+                    log.LogInformation("C# Total sorter insertadas: " + responseSorter);
+                }
 
                 log.LogInformation("C# HTTP trigger function end");
-                return new OkObjectResult(response);
+                return new OkObjectResult(responseSorter);
             }
             catch (Exception ex)
             {
@@ -126,118 +133,136 @@ namespace AzFunctionDipsAtrex
 
         private string GetListNewTrackingsDips(List<VolcadoDipsResponse> response)
         {
-            return string.Join(";", response.Select(x => x.Master).ToList());
+            var list = new List<DipsValidateRequest>();
+            foreach (var item in response)
+            {
+                list.Add(new DipsValidateRequest()
+                {
+                    NumeroDips = item.NumeroDIPS,
+                    Master = item.Master,
+                    NroGuiaHija = item.GuiasAsociadas
+                });
+            }
+            return JsonConvert.SerializeObject(list);
         }
 
         private List<VolcadoDipsResponse> MapVolcadoDips(string req, ILogger log)
         {
             List<VolcadoDipsResponse> listResponse = new List<VolcadoDipsResponse>();
             var response = Regex.Replace(req.Replace(System.Environment.NewLine, string.Empty), @"\\r\\n", string.Empty);
-            var responses = response.Split(';');
+            var list = response.Split(';');
 
             int count = 0;
 
-            for (int i = 0; i < responses.Length - 1; i++)
+            for (int i = 0; i < list.Length - 1; i++)
             {
-                var unit = responses[i].Split('|');
+                var unit = list[i].Split('|');
 
-                var single = new VolcadoDipsResponse();
+                if (unit.Length == 1)
+                {
+                    var fill = fillRegister(listResponse.Last(), unit.FirstOrDefault());
+                    listResponse.Add(fill);
+                }
+                else
+                {
+                    var single = new VolcadoDipsResponse();
 
-                single.Empresa = unit[0];
-                single.NumeroDIPSCompleta = unit[1];
-                single.NumeroDIPS = unit[2];
-                single.FechaVigencia = DateTime.ParseExact(FormatDatetime(unit[3]), "dd-MM-yyyy", CultureInfo.InvariantCulture);
-                single.Codaduana = unit[4];
-                single.CodOperacion = unit[5];
-                single.FechaAceptacion = DateTime.ParseExact(FormatDatetime(unit[6]), "dd-MM-yyyy", CultureInfo.InvariantCulture);
-                single.NombreEmpresa = unit[7];
-                single.DireccionImportador = unit[8];
-                single.CodComunaImportador = unit[9];
-                single.Importador = unit[10];
-                single.Comuna = unit[11];
-                single.CodImportador = unit[12];
-                single.RutImportador = unit[13];
-                single.Digito = unit[14];
-                single.PaisOrigen = unit[15];
-                single.CodPaisOrigen = unit[16];
-                single.PaisAdquisicion = unit[17];
-                single.CodPaisAdquisicion = unit[18];
-                single.CodviaTransporte = unit[19];
-                single.PuertoEmbarque = unit[20];
-                single.CodPuertoEmbarque = unit[21];
-                single.PuertoDesembarque = unit[22];
-                single.CodPuertoDesembarque = unit[23];
-                single.Almacenista = unit[24];
-                single.CodAlmacenista = unit[25];
-                single.FechaRecepcion = DateTime.ParseExact(FormatDatetime(unit[26]), "dd-MM-yyyy", CultureInfo.InvariantCulture);
-                single.FechaRetiro = DateTime.ParseExact(FormatDatetime(unit[27]), "dd-MM-yyyy", CultureInfo.InvariantCulture);
-                single.NumeroManifiesto = unit[28];
-                single.FechaManifiesto = DateTime.ParseExact(FormatDatetime(unit[29]), "dd-MM-yyyy", CultureInfo.InvariantCulture);
-                single.FechaDocTransporte = DateTime.ParseExact(FormatDatetime(unit[30]), "dd-MM-yyyy", CultureInfo.InvariantCulture);
-                single.Master = unit[31];
-                single.Regimen = unit[32];
-                single.CodRegimen = unit[33];
-                single.TotalItem = unit[34];
-                single.ValorFOB = Convert.ToDecimal(unit[35]);
-                single.TotalHojas = unit[36];
-                single.Flete = Convert.ToDecimal(unit[37]);
-                single.TotalBultos = unit[38];
-                single.Seguro = Convert.ToDecimal(unit[39]);
-                single.Peso = Convert.ToDecimal(unit[40]);
-                single.TotalCIF = Convert.ToDecimal(unit[41]);
-                single.DescripcionArancel = unit[42];
-                single.Ajuste = unit[43];
-                single.GuiasCant = unit[44];
-                single.PrecioFOB = Convert.ToDecimal(unit[45]);
-                single.CodArancel = unit[46];
-                single.ValorCIF = Convert.ToDecimal(unit[47]);
-                single.AdValorem = Convert.ToDecimal(unit[48]);
-                single.CodAdvalorem = unit[49];
-                single.CIF1 = Convert.ToDecimal(unit[50]);
-                single.IVA = Convert.ToDecimal(unit[51]);
-                single.CodIVA = unit[52];
-                single.IVASinSeguro = Convert.ToDecimal(unit[53]);
-                single.TipoBulto = unit[54];
-                single.CodBultos = unit[55];
-                single.CantBulto = unit[56];
-                single.Valor178 = Convert.ToDecimal(unit[57]);
-                single.Valor191 = Convert.ToDecimal(unit[58]);
-                single.CodImpto = unit[59];
-                single.Impuesto = Convert.ToDecimal(unit[60]);
-                single.CodAlmacen = unit[61];
-                single.Valoralmacenaje = Convert.ToDecimal(unit[62]);
-                single.CodCuenta = unit[63];
-                single.Impto = unit[64];
-                single.CodImptoAdicional = unit[65];
-                single.PorcentajeImpuesto = unit[66];
-                single.ValorImpuesto = Convert.ToDecimal(unit[67]);
-                single.Despachador = unit[68];
-                single.Aduana = unit[69];
-                single.TipoOperacion = unit[70];
-                single.Inspeccion = unit[71];
-                single.CodInspecc = unit[72];
-                single.DatoInterno = unit[73];
-                single.UnidadMedida = unit[74];
-                single.Dolar = Convert.ToDecimal(unit[75]);
-                single.Valor91 = Convert.ToDecimal(unit[76]);
-                single.Comentario1 = unit[77];
-                single.Comentario2 = unit[78];
-                single.Comentario3 = unit[79];
-                single.Atributo = unit[80];
-                single.Atributo2 = unit[81];
-                single.Atributo3 = unit[82];
-                single.Atributo4 = unit[83];
-                single.Atributo5 = unit[84];
-                single.Atributo6 = unit[85];
-                single.DatoInternoAtrex = unit[86];
-                single.DatointernoVacio = unit[87];
-                single.FechaConfeccion = string.IsNullOrEmpty(unit[88]) ? DateTime.MinValue : DateTime.ParseExact(unit[88], "dd-MM-yyyy H:mm:ss", null);
-                single.ArancelTratado = unit[89];
-                single.CodigoAcuerdo = unit[90];
-                single.GuiasAsociadas = unit[91];
+                    single.Empresa = unit[0];
+                    single.NumeroDIPSCompleta = unit[1];
+                    single.NumeroDIPS = unit[2];
+                    single.FechaVigencia = DateTime.ParseExact(FormatDatetime(unit[3]), "dd-MM-yyyy", CultureInfo.InvariantCulture);
+                    single.Codaduana = unit[4];
+                    single.CodOperacion = unit[5];
+                    single.FechaAceptacion = DateTime.ParseExact(FormatDatetime(unit[6]), "dd-MM-yyyy", CultureInfo.InvariantCulture);
+                    single.NombreEmpresa = unit[7];
+                    single.DireccionImportador = unit[8];
+                    single.CodComunaImportador = unit[9];
+                    single.Importador = unit[10];
+                    single.Comuna = unit[11];
+                    single.CodImportador = unit[12];
+                    single.RutImportador = unit[13];
+                    single.Digito = unit[14];
+                    single.PaisOrigen = unit[15];
+                    single.CodPaisOrigen = unit[16];
+                    single.PaisAdquisicion = unit[17];
+                    single.CodPaisAdquisicion = unit[18];
+                    single.CodviaTransporte = unit[19];
+                    single.PuertoEmbarque = unit[20];
+                    single.CodPuertoEmbarque = unit[21];
+                    single.PuertoDesembarque = unit[22];
+                    single.CodPuertoDesembarque = unit[23];
+                    single.Almacenista = unit[24];
+                    single.CodAlmacenista = unit[25];
+                    single.FechaRecepcion = DateTime.ParseExact(FormatDatetime(unit[26]), "dd-MM-yyyy", CultureInfo.InvariantCulture);
+                    single.FechaRetiro = DateTime.ParseExact(FormatDatetime(unit[27]), "dd-MM-yyyy", CultureInfo.InvariantCulture);
+                    single.NumeroManifiesto = unit[28];
+                    single.FechaManifiesto = DateTime.ParseExact(FormatDatetime(unit[29]), "dd-MM-yyyy", CultureInfo.InvariantCulture);
+                    single.FechaDocTransporte = DateTime.ParseExact(FormatDatetime(unit[30]), "dd-MM-yyyy", CultureInfo.InvariantCulture);
+                    single.Master = unit[31];
+                    single.Regimen = unit[32];
+                    single.CodRegimen = unit[33];
+                    single.TotalItem = unit[34];
+                    single.ValorFOB = Convert.ToDecimal(unit[35]);
+                    single.TotalHojas = unit[36];
+                    single.Flete = Convert.ToDecimal(unit[37]);
+                    single.TotalBultos = unit[38];
+                    single.Seguro = Convert.ToDecimal(unit[39]);
+                    single.Peso = Convert.ToDecimal(unit[40]);
+                    single.TotalCIF = Convert.ToDecimal(unit[41]);
+                    single.DescripcionArancel = unit[42];
+                    single.Ajuste = unit[43];
+                    single.GuiasCant = unit[44];
+                    single.PrecioFOB = Convert.ToDecimal(unit[45]);
+                    single.CodArancel = unit[46];
+                    single.ValorCIF = Convert.ToDecimal(unit[47]);
+                    single.AdValorem = Convert.ToDecimal(unit[48]);
+                    single.CodAdvalorem = unit[49];
+                    single.CIF1 = Convert.ToDecimal(unit[50]);
+                    single.IVA = Convert.ToDecimal(unit[51]);
+                    single.CodIVA = unit[52];
+                    single.IVASinSeguro = Convert.ToDecimal(unit[53]);
+                    single.TipoBulto = unit[54];
+                    single.CodBultos = unit[55];
+                    single.CantBulto = unit[56];
+                    single.Valor178 = Convert.ToDecimal(unit[57]);
+                    single.Valor191 = Convert.ToDecimal(unit[58]);
+                    single.CodImpto = unit[59];
+                    single.Impuesto = Convert.ToDecimal(unit[60]);
+                    single.CodAlmacen = unit[61];
+                    single.Valoralmacenaje = Convert.ToDecimal(unit[62]);
+                    single.CodCuenta = unit[63];
+                    single.Impto = unit[64];
+                    single.CodImptoAdicional = unit[65];
+                    single.PorcentajeImpuesto = unit[66];
+                    single.ValorImpuesto = Convert.ToDecimal(unit[67]);
+                    single.Despachador = unit[68];
+                    single.Aduana = unit[69];
+                    single.TipoOperacion = unit[70];
+                    single.Inspeccion = unit[71];
+                    single.CodInspecc = unit[72];
+                    single.DatoInterno = unit[73];
+                    single.UnidadMedida = unit[74];
+                    single.Dolar = Convert.ToDecimal(unit[75]);
+                    single.Valor91 = Convert.ToDecimal(unit[76]);
+                    single.Comentario1 = unit[77];
+                    single.Comentario2 = unit[78];
+                    single.Comentario3 = unit[79];
+                    single.Atributo = unit[80];
+                    single.Atributo2 = unit[81];
+                    single.Atributo3 = unit[82];
+                    single.Atributo4 = unit[83];
+                    single.Atributo5 = unit[84];
+                    single.Atributo6 = unit[85];
+                    single.DatoInternoAtrex = unit[86];
+                    single.DatointernoVacio = unit[87];
+                    single.FechaConfeccion = string.IsNullOrEmpty(unit[88]) ? DateTime.MinValue : DateTime.ParseExact(unit[88], "dd-MM-yyyy H:mm:ss", null);
+                    single.ArancelTratado = unit[89];
+                    single.CodigoAcuerdo = unit[90];
+                    single.GuiasAsociadas = unit[91];
 
-                listResponse.Add(single);
-
+                    listResponse.Add(single);
+                }
+                
                 count += 1;
 
                 //log.LogInformation("C# Count: " + count);
@@ -344,6 +369,12 @@ namespace AzFunctionDipsAtrex
             //}
 
             return listResponse;
+        }
+
+        private VolcadoDipsResponse fillRegister(VolcadoDipsResponse last, string unit)
+        {
+            last.GuiasAsociadas = unit;
+            return last;
         }
 
         private string FormatDatetime(string v)
